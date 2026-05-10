@@ -4,11 +4,11 @@ import API from "../api";
 import Viewer from "../components/Viewer.jsx";
 
 export default function Dashboard() {
-  const [file, setFile] = useState(null);
   const [object, setObject] = useState(null);
   const [objects, setObjects] = useState([]);
   const [message, setMessage] = useState("");
 
+  const fileInputRef = useRef(null);
   const controlsRef = useRef(null);
   const cameraRef = useRef(null);
 
@@ -30,14 +30,18 @@ export default function Dashboard() {
   }, []);
 
   const upload = async () => {
-    if (!file) {
+    const selectedFile = fileInputRef.current?.files?.[0];
+
+    if (!selectedFile) {
       return setMessage("Please select a .glb file");
     }
 
     const fd = new FormData();
-    fd.append("model", file);
+    fd.append("model", selectedFile);
 
     try {
+      setMessage("Uploading model...");
+
       const res = await API.post("/objects/upload", fd, {
         headers: {
           "Content-Type": "multipart/form-data",
@@ -107,16 +111,16 @@ export default function Dashboard() {
 
         <div className="uploadBox">
           <input
+            ref={fileInputRef}
             type="file"
-            accept=".glb"
-            onChange={(e) => setFile(e.target.files[0])}
+            accept=".glb,.gltf"
           />
 
-          <button onClick={upload}>
+          <button type="button" onClick={upload}>
             <Upload size={18} /> Upload GLB
           </button>
 
-          <button className="secondary" onClick={saveState}>
+          <button type="button" className="secondary" onClick={saveState}>
             <Save size={18} /> Save Camera State
           </button>
         </div>
@@ -129,6 +133,7 @@ export default function Dashboard() {
           {objects.map((o) => (
             <button
               key={o._id}
+              type="button"
               onClick={() => setObject(o)}
               className={object?._id === o._id ? "selected" : ""}
             >
