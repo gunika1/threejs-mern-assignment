@@ -2,70 +2,55 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
 const authMiddleware = require("../middleware/authMiddleware");
+
+const uploadDir = path.join(__dirname, "../uploads");
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/");
+    cb(null, uploadDir);
   },
-
   filename: (req, file, cb) => {
-    cb(
-      null,
-      Date.now() + path.extname(file.originalname)
-    );
+    cb(null, Date.now() + "-" + file.originalname);
   },
 });
 
 const upload = multer({ storage });
 
-router.post(
-  "/upload",
-  authMiddleware,
-  upload.single("model"),
-  async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({
-          message: "No file uploaded",
-        });
-      }
+router.get("/", authMiddleware, async (req, res) => {
+  return res.json([]);
+});
 
-      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
-
-      return res.json({
-        _id: Date.now().toString(),
-        name: req.file.originalname,
-        fileUrl,
-        cameraPosition: null,
-      });
-
-    } catch (error) {
-      console.log("UPLOAD ERROR:", error);
-
-      return res.status(500).json({
-        message: error.message || "Upload failed",
-      });
+router.post("/upload", authMiddleware, upload.single("model"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
     }
-  }
-);
 
-router.put(
-  "/:id/state",
-  authMiddleware,
-  async (req, res) => {
-    try {
-      return res.json({
-        success: true,
-        cameraPosition: req.body.cameraPosition,
-      });
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
 
-    } catch (error) {
-      return res.status(500).json({
-        message: "Failed to save state",
-      });
-    }
+    return res.json({
+      _id: Date.now().toString(),
+      name: req.file.originalname,
+      fileUrl: `${baseUrl}/uploads/${req.file.filename}`,
+      cameraPosition: null,
+    });
+  } catch (error) {
+    console.log("UPLOAD ERROR:", error.message);
+    return res.status(500).json({ message: error.message || "Upload failed" });
   }
-);
+});
+
+router.put("/:id/state", authMiddleware, async (req, res) => {
+  return res.json({
+    success: true,
+    cameraPosition: req.body.cameraPosition,
+  });
+});
 
 module.exports = router;
